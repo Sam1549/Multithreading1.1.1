@@ -1,19 +1,23 @@
 package org.example;
 
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 
 public class Main {
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
         String[] texts = new String[25];
-        List<Thread> threads = new ArrayList<>();
+        List<Future<Integer>> futures = new ArrayList<>();
         for (int i = 0; i < texts.length; i++) {
             texts[i] = generateText("aab", 30_000);
         }
 
         long startTs = System.currentTimeMillis(); // start time
         for (String text : texts) {
-            Runnable runnable = () -> {
+            Callable<Integer> callable = () -> {
                 int maxSize = 0;
                 for (int i = 0; i < text.length(); i++) {
                     for (int j = 0; j < text.length(); j++) {
@@ -34,19 +38,23 @@ public class Main {
                     }
 
                 }
-
-                System.out.println(text.substring(0, 100) + " -> " + maxSize);
+                return maxSize;
+//                System.out.println(text.substring(0, 100) + " -> " + maxSize);
             };
 
-            Thread thread = new Thread(runnable);
-            threads.add(thread);
-            thread.start();
-        }
+            FutureTask<Integer> futureTask = new FutureTask<>(callable);
+            futures.add(futureTask);
+            new Thread(futureTask).start();
 
-        for (Thread thread : threads) {
-            thread.join(); // зависаем, ждём когда поток объект которого лежит в thread завершится
-            System.out.println("Ждем когда поток завершится " + thread.getName());
         }
+        int max = 0;
+        for (Future future : futures) {
+            int currentMax = (int) future.get();
+            if (currentMax > max) {
+                max = currentMax;
+            }
+        }
+        System.out.format("Максимальный интервал значений среди всех строк: %d \n", max);
 
 
         long endTs = System.currentTimeMillis(); // end time
